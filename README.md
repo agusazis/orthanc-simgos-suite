@@ -127,6 +127,16 @@ docker compose ps
 
 Agar SIMGOSv2 dapat mengirimkan order pemeriksaan ke worklist Orthanc dan dokter dapat membuka web viewer langsung dari Electronic Medical Record (EMR), lakukan konfigurasi pada plugin **RIS** di SIMGOSv2.
 
+> 💡 **Siap Pakai**: Seluruh file driver dan template konfigurasi yang dijelaskan di bawah ini telah kami sediakan di dalam folder **[`simgos2-plugin-ris/`](./simgos2-plugin-ris/)**. Anda cukup menyalinnya langsung ke server SIMGOSv2:
+> ```bash
+> # 1. Salin file driver
+> cp simgos2-plugin-ris/src/driver/worklist/ORTHANC.php /var/www/html/webapps/webservice/plugins/ris/src/driver/worklist/
+> cp simgos2-plugin-ris/src/driver/viewer/*.php /var/www/html/webapps/webservice/plugins/ris/src/driver/viewer/
+>
+> # 2. Salin template konfigurasi
+> cp simgos2-plugin-ris/config/autoload/plugins/ris.php.example /var/www/html/webapps/webservice/config/autoload/plugins/ris.php
+> ```
+
 ### 1. Mengapa Viewer Mengarah ke Port 80 Nginx?
 * **Masalah Browser**: Browser modern (Chrome, Edge, Firefox) secara default **memblokir** URL yang menyematkan kredensial langsung (`http://user:password@ip:8042/...`) demi alasan keamanan (phishing protection / RFC 3986). Jika diarahkan langsung ke port 8042, dokter akan terganggu oleh pop-up otentikasi login setiap kali membuka hasil radiologi.
 * **Solusi Reverse Proxy Nginx**: Viewer di SIMGOSv2 cukup diarahkan ke port 80 Nginx (`http://[IP_SERVER_PACS]/ohif/...` atau `http://[IP_SERVER_PACS]/stone-webviewer/...`). Kontainer `orthanc-nginx` bertindak sebagai reverse proxy yang secara otomatis menginjeksi header HTTP `Authorization: Basic ...` dari sisi server ke Orthanc. Dokter dapat langsung membuka citra secara transparan, aman, dan tanpa login ulang.

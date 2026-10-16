@@ -1,0 +1,70 @@
+<?php
+/**
+ * =============================================================================
+ * SIMGOSv2 - RIS PLUGIN CONFIGURATION TEMPLATE
+ * =============================================================================
+ * Salin file ini ke:
+ * webapps/webservice/config/autoload/plugins/ris.php
+ *
+ * Sesuaikan IP Host, Port, dan Kode Faskes dengan konfigurasi server Anda.
+ */
+
+return [
+    'services' => [
+        'RIService' => [
+            // -----------------------------------------------------------------
+            // 1. PENGIRIMAN ORDER WORKLIST (HL7 MLLP ke hl7-listener Orthanc)
+            // -----------------------------------------------------------------
+            "HL7" => [
+                [
+                    // IP dan Port Server Orthanc (Microservice hl7-listener)
+                    'host' => "192.168.10.30", 
+                    'port' => 2575, 
+                    'appName' => 'SIMRSGos V.2+', 
+                    'organization' => [
+                        'id' => '9999999',              // Kode RS Kemenkes
+                        'name' => 'RS Contoh Sejahtera', // Nama Faskes
+                        'root' => '1.2.360.9999999'      // Format: 1.2.360.[KODE_RS]
+                    ],
+                    'version' => '2.5', // HL7 Format Message                
+                    'provider' => [
+                        // Menggunakan driver ORTHANC.php (atau DCM4CHEE)
+                        'name' => "ORTHANC", 
+                        'facility' => "RIS"
+                    ]
+                ]
+            ],
+
+            // -----------------------------------------------------------------
+            // 2. WEB VIEWER RADIOLOGI (Mengarah ke Nginx Reverse Proxy Port 80)
+            // -----------------------------------------------------------------
+            // Nginx secara transparan menyuntikkan basic auth Orthanc sehingga
+            // tidak memicu security warning atau pemblokiran otentikasi browser.
+            "viewer" => [
+                /**
+                 * Pilihan 1: OHIF Viewer v3 (Direkomendasikan)
+                 */
+                [
+                    'name' => 'OHIF',
+                    'description' => 'OHIF Viewer v3 via Nginx Proxy',
+                    'url' => 'http://192.168.10.30/ohif/viewer',
+                    'queries' => '?StudyInstanceUIDs=1.2.360.9999999.[ACCESSION_NUMBER]',
+                    'root' => '1.2.360.9999999',
+                    'supportIframe' => true,
+                ],
+
+                /**
+                 * Pilihan 2: Stone Web Viewer
+                 */
+                [
+                    'name' => 'StoneViewer',
+                    'description' => 'Stone Web Viewer via Nginx Proxy',
+                    'url' => 'http://192.168.10.30/stone-webviewer/index.html',
+                    'queries' => '?study=1.2.360.9999999.[ACCESSION_NUMBER]',
+                    'root' => '1.2.360.9999999',
+                    'supportIframe' => true,
+                ]
+            ]
+        ]
+    ]
+];
