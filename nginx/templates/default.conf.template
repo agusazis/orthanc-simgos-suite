@@ -1,0 +1,94 @@
+server {
+    listen 80;
+    server_name localhost;
+
+    # === VIEWER PATHS (Injeksi Basic Auth Otomatis untuk Integrasi Web SIMGOS) ===
+    location /ohif/ {
+        proxy_set_header Authorization "${ORTHANC_BASIC_AUTH}";
+        proxy_pass http://orthanc:8042;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
+    }
+
+    location /stone-webviewer/ {
+        proxy_set_header Authorization "${ORTHANC_BASIC_AUTH}";
+        proxy_pass http://orthanc:8042;
+        proxy_set_header Host $host;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        add_header Access-Control-Allow-Origin "*" always;
+    }
+
+    # === DICOMweb API (Wajib untuk OHIF Viewer) ===
+    location /dicom-web/ {
+        proxy_set_header Authorization "${ORTHANC_BASIC_AUTH}";
+        proxy_pass http://orthanc:8042;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        
+        # CORS Headers untuk OHIF
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type, Accept" always;
+        
+        # Preflight OPTIONS Request Handler
+        if ($request_method = 'OPTIONS') {
+            add_header Access-Control-Allow-Origin "*";
+            add_header Access-Control-Allow-Methods "GET, POST, OPTIONS";
+            add_header Access-Control-Allow-Headers "Authorization, Content-Type, Accept";
+            add_header Access-Control-Max-Age 1728000;
+            add_header Content-Type 'text/plain charset=UTF-8';
+            add_header Content-Length 0;
+            return 204;
+        }
+    }
+
+    # === WADO-RS (Alternatif DICOMweb) ===
+    location /wado {
+        proxy_set_header Authorization "${ORTHANC_BASIC_AUTH}";
+        proxy_pass http://orthanc:8042;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        add_header Access-Control-Allow-Origin "*" always;
+    }
+
+    # === Plugins & API Passthrough ===
+    location /api/ {
+        proxy_set_header Authorization "${ORTHANC_BASIC_AUTH}";
+        proxy_pass http://orthanc:8042;
+        proxy_set_header Host $host;
+        proxy_buffering off;
+        add_header Access-Control-Allow-Origin "*" always;
+    }
+
+    location /tools/ {
+        proxy_set_header Authorization "${ORTHANC_BASIC_AUTH}";
+        proxy_pass http://orthanc:8042;
+        proxy_set_header Host $host;
+        proxy_buffering off;
+        add_header Access-Control-Allow-Origin "*" always;
+    }
+
+    # === BLOCK ADMIN INTERFACE (Isolasi Keamanan) ===
+    # Antarmuka Admin dan Orthanc Explorer diblokir di port 80, hanya bisa diakses via port 8042 dengan kredensial
+    location ~ ^/(app|ui|explorer) {
+        return 403 "Access denied. Gunakan port 8042 untuk akses admin.";
+    }
+
+    location = / {
+        return 403 "Access denied.";
+    }
+
+    location / {
+        return 403 "Access denied.";
+    }
+}

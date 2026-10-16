@@ -1,0 +1,125 @@
+services:
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: orthanc-postgres-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-orthanc_db}
+      POSTGRES_USER: ${POSTGRES_USER:-orthanc_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ${HOST_PG_DATA_DIR:-/var/lib/pacs-local/pg-data}:/var/lib/postgresql/data
+    networks:
+      - pacs-net
+
+  orthanc:
+    image: orthancteam/orthanc@sha256:a055ccd31f7cd1e45ce98912e1c6e8e83b6a8f262f5b8fe6c88e2b6cd060fc57
+    container_name: orthanc-core
+    restart: always
+    depends_on:
+      - postgres-db
+    ports:
+      - "${ORTHANC_DICOM_PORT:-4242}:4242"
+      - "${ORTHANC_HTTP_PORT:-8042}:8042"
+    environment:
+      - ORTHANC__NAME=${ORTHANC_SERVER_NAME:-RS_PACS_ORTHANC}
+      - ORTHANC__AUTHENTICATION_ENABLED=true
+      - 'ORTHANC__REGISTERED_USERS={"${ORTHANC_SIMRS_USER:-orthanc_simrs}":"${ORTHANC_SIMRS_PASSWORD}"}'
+
+      # Kebijakan Akses Modalitas DICOM & Storage
+      - ORTHANC__DICOM_ALWAYS_ALLOW_FIND=true
+      - ORTHANC__DICOM_ALWAYS_ALLOW_STORE=true
+      - ORTHANC__DICOM_ALWAYS_ALLOW_FIND_WORKLIST=true
+      - ORTHANC__DICOM_CHECK_MODALITY_HOST=false
+
+      # Support Kompresi / JPEG Transfer Syntax (USG / CR)
+      - ORTHANC__DECOMPRESS_IMAGES=true
+      - ORTHANC__DICOM_MODALITIES_ACCEPT_ANY_TRANSFER_SYNTAX=true
+
+      # Optimasi Indeks Tag DICOM (Mencegah Warning W001 & I/O Bottleneck ke NAS Storage)
+      - 'ORTHANC__EXTRA_MAIN_DICOM_TAGS={"Study":["0008,1050","0032,4000","4008,0212"]}'
+
+      # Modalitas Terdaftar
+      - 'ORTHANC__DICOM_MODALITIES=${ORTHANC_DICOM_MODALITIES}'
+
+      # Database PostgreSQL Backend
+      - ORTHANC__POSTGRESQL__HOST=postgres-db
+      - ORTHANC__POSTGRESQL__PORT=5432
+      - ORTHANC__POSTGRESQL__DATABASE=${POSTGRES_DB:-orthanc_db}
+      - ORTHANC__POSTGRESQL__USERNAME=${POSTGRES_USER:-orthanc_user}
+      - ORTHANC__POSTGRESQL__PASSWORD=${POSTGRES_PASSWORD}
+      - ORTHANC__POSTGRESQL__ENABLE_INDEX=true
+      - ORTHANC__POSTGRESQL__ENABLE_STORAGE=false
+
+      # Folder Worklist
+      - ORTHANC__WORKLISTS__ENABLE=true
+      - ORTHANC__WORKLISTS__DIRECTORY=/var/lib/orthanc/worklists
+      - ORTHANC__STABLE_AGE=30
+
+      # Aktifkan Plugin Standar & Viewer
+      - DICOM_WEB_PLUGIN_ENABLED=true
+      - WORKLISTS_PLUGIN_ENABLED=true
+      - OHIF_PLUGIN_ENABLED=true
+      - STONE_WEB_VIEWER_PLUGIN_ENABLED=true
+      - OSIMIS_WEB_WIEWER_PLUGIN_ENABLED=true
+      - ORTHANC_EXPLORER_2_PLUGIN_ENABLED=true
+
+    volumes:
+      - ${HOST_ORTHANC_STORAGE_DIR:-/mnt/pacs-data/orthanc-storage}:/var/lib/orthanc/db
+      - ${HOST_WORKLIST_DIR:-/var/lib/pacs-local/worklists}:/var/lib/orthanc/worklists
+
+    networks:
+      - pacs-net
+
+  # --- MICROSERVICE HL7 MLLP LISTENER ---
+  hl7-listener:
+    build: ./hl7-listener
+    container_name: orthanc-hl7-listener
+    restart: always
+    ports:
+      - "${HL7_PORT:-2575}:2575"
+    environment:
+      - INSTITUTION_NAME=${INSTITUTION_NAME}
+      - STATION_AETITLE=${ORTHANC_AET:-ORTHANC}
+      - DICOM_UID_ROOT=${DICOM_UID_ROOT}
+      - HL7_PORT=2575
+      - WRITE_DELAY_SEC=${WRITE_DELAY_SEC:-0.2}
+      - WORKLIST_DIR=/mnt/worklists
+    volumes:
+      - ${HOST_WORKLIST_DIR:-/var/lib/pacs-local/worklists}:/mnt/worklists
+    networks:
+      - pacs-net
+
+  # --- NGINX REVERSE PROXY (Auto-Auth untuk Web SIMGOS) ---
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: orthanc-nginx
+    restart: always
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    environment:
+      - ORTHANC_BASIC_AUTH=${ORTHANC_BASIC_AUTH}
+      - NGINX_ENVSUBST_FILTER=ORTHANC_BASIC_AUTH
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates:ro
+    depends_on:
+      - orthanc
+    networks:
+      - pacs-net
+
+  # --- DICOM MOVER (Sinkronisasi ke Kemenkes SatuSehat) ---
+  dicom-mover:
+    image: git.simpel.web.id:5050/pub/dicom-mover/dicom-mover:1.0.0
+    container_name: dicom-mover
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./dicom-mover/acn_last.txt:/app/acn_last.txt
+      - ./dicom-mover/logs:/app/logs
+    networks:
+      - pacs-net
+
+networks:
+  pacs-net:
+    driver: bridge

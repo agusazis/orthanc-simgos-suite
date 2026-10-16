@@ -1,0 +1,37 @@
+# Kredensial & Lingkungan Sensitif
+.env
+*.env
+*.env.*
+!*.env.example
+
+# File Sementara & Worklists Lokal
+*.tmp
+*.wl
+worklists/
+pg-data/
+orthanc-storage/
+
+# Log & Audit
+*.log
+logs/
+dicom-mover/logs/
+
+# File Riwayat / Tracking
+acn_last.txt
+dicom-mover/acn_last.txt
+
+# Backup & Editor Artifacts
+*.bak*
+*.save*
+*.swp
+*.swo
+*~
+.DS_Store
+__pycache__/
+*.pyc
+
+# Docker compose backups
+docker-compose-backup/
+docker-compose*.bak*
+docker-compose*.save*
+.git_upstream/
