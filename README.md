@@ -123,24 +123,120 @@ docker compose ps
 
 ---
 
-## 🔧 Integrasi dengan SIMGOSv2
+## 🔧 Integrasi Sisi SIMGOSv2 (Plugin RIS)
 
-### 1. Pengaturan HL7 Listener di SIMGOSv2
-Pada menu konfigurasi Radiologi/LIS SIMGOSv2:
-* **HL7 Host / IP**: IP Server PACS Anda (contoh: `192.168.10.30`)
-* **HL7 Port**: `2575`
-* **Format Pesan**: HL7 2.x (ORM / OBR)
+Agar SIMGOSv2 dapat mengirimkan order pemeriksaan ke worklist Orthanc dan dokter dapat membuka web viewer langsung dari Electronic Medical Record (EMR), lakukan konfigurasi pada plugin **RIS** di SIMGOSv2.
 
-### 2. Pengaturan URL Viewer di SIMGOSv2
-Untuk tombol "Buka Citra / Hasil" pada Elektronik Rekam Medis (ERM):
-* **OHIF Viewer v3**:
-  ```text
-  http://[IP_SERVER_PACS]/ohif/viewer?StudyInstanceUIDs=1.2.360.[KODE_RS].[ACCESSION_NUMBER]
-  ```
-* **Stone Web Viewer**:
-  ```text
-  http://[IP_SERVER_PACS]/stone-webviewer/index.html?study=1.2.360.[KODE_RS].[ACCESSION_NUMBER]
-  ```
+### 1. Mengapa Viewer Mengarah ke Port 80 Nginx?
+* **Masalah Browser**: Browser modern (Chrome, Edge, Firefox) secara default **memblokir** URL yang menyematkan kredensial langsung (`http://user:password@ip:8042/...`) demi alasan keamanan (phishing protection / RFC 3986). Jika diarahkan langsung ke port 8042, dokter akan terganggu oleh pop-up otentikasi login setiap kali membuka hasil radiologi.
+* **Solusi Reverse Proxy Nginx**: Viewer di SIMGOSv2 cukup diarahkan ke port 80 Nginx (`http://[IP_SERVER_PACS]/ohif/...` atau `http://[IP_SERVER_PACS]/stone-webviewer/...`). Kontainer `orthanc-nginx` bertindak sebagai reverse proxy yang secara otomatis menginjeksi header HTTP `Authorization: Basic ...` dari sisi server ke Orthanc. Dokter dapat langsung membuka citra secara transparan, aman, dan tanpa login ulang.
+
+---
+
+### 2. Konfigurasi `ris.php` di SIMGOSv2
+Buka dan sesuaikan file konfigurasi RIS di server SIMGOSv2:
+`webapps/webservice/plugins/ris/ris.php` (atau `plugins/ris/be/ris.php`):
+
+```php
+<?php
+return [
+    'services' => [
+        'RIService' => [
+            // -------------------------------------------------------------
+            // PENGIRIMAN ORDER WORKLIST (HL7 MLLP)
+            // -------------------------------------------------------------
+            "HL7" => [
+                [
+                    // IP dan Port Server PACS Orthanc (hl7-listener)
+                    'host' => "192.168.10.30", 
+                    'port' => 2575, 
+                    'appName' => 'SIMRSGos V.2+', 
+                    'organization' => [
+                        'id' => '9999999',              // Kode RS Kemenkes
+                        'name' => 'RS Contoh Sejahtera', // Nama RS Anda
+                        'root' => '1.2.360.9999999'      // Format: 1.2.360.[KODE_RS]
+                    ],
+                    'version' => '2.5', // HL7 Format Message                
+                    'provider' => [
+                        // Gunakan DCM4CHEE (driver bawaan) atau ORTHANC (jika sudah membuat driver ORTHANC.php)
+                        'name' => "DCM4CHEE", 
+                        'facility' => "RIS"
+                    ]
+                ]
+            ],
+
+            // -------------------------------------------------------------
+            // WEB VIEWER RADIOLOGI (OHIF / Stone Viewer via Nginx Port 80)
+            // -------------------------------------------------------------
+            "viewer" => [
+                /**
+                 * Pilihan 1: OHIF Viewer v3 (Direkomendasikan)
+                 */
+                [
+                    'name' => 'OHIF',
+                    'description' => 'OHIF Viewer v3 via Nginx Proxy',
+                    'url' => 'http://192.168.10.30/ohif/viewer',
+                    'queries' => '?StudyInstanceUIDs=1.2.360.9999999.[ACCESSION_NUMBER]',
+                    'root' => '1.2.360.9999999',
+                    'supportIframe' => true,
+                ],
+
+                /**
+                 * Pilihan 2: Stone Web Viewer
+                 */
+                [
+                    'name' => 'StoneViewer',
+                    'description' => 'Stone Web Viewer via Nginx Proxy',
+                    'url' => 'http://192.168.10.30/stone-webviewer/index.html',
+                    'queries' => '?study=1.2.360.9999999.[ACCESSION_NUMBER]',
+                    'root' => '1.2.360.9999999',
+                    'supportIframe' => true,
+                ]
+            ]
+        ]
+    ]
+];
+```
+
+---
+
+### 3. Penyesuaian Driver Plugin RIS (Opsional)
+
+#### A. Driver Worklist: `ORTHANC.php`
+Jika ingin menggunakan identitas `'name' => "ORTHANC"` pada opsi provider HL7 di `ris.php`, Anda cukup menyalin file driver bawaan `DCM4CHEE.php`:
+```bash
+# Di direktori SIMGOSv2:
+cp webapps/webservice/plugins/ris/src/driver/worklist/DCM4CHEE.php \
+   webapps/webservice/plugins/ris/src/driver/worklist/ORTHANC.php
+```
+Lalu edit `ORTHANC.php` dan sesuaikan deklarasi nama class-nya:
+```php
+namespace RIS\driver\worklist;
+
+class ORTHANC extends Driver {
+    // Isi class sama persis dengan DCM4CHEE
+}
+```
+*(Catatan: Jika tidak ingin menambah file baru, Anda tetap bisa menggunakan `'name' => "DCM4CHEE"` di `ris.php` karena protokol HL7 2.x MLLP yang dikirimkan SIMGOSv2 kompatibel penuh dan ditangani oleh microservice `hl7-listener`).*
+
+#### B. Driver Viewer: `StoneViewer.php`
+Jika driver untuk Stone Viewer belum tersedia di direktori `webapps/webservice/plugins/ris/src/driver/viewer/`, buat file `StoneViewer.php`:
+```php
+<?php
+namespace RIS\driver\viewer;
+
+class StoneViewer extends Driver {
+    public function getViewer($params) {
+        $config = $this->config;
+        if (!empty($params["ACCESSION_NUMBER"])) {
+            $url = $config["url"] . $config["queries"];
+            $url = str_replace("[ACCESSION_NUMBER]", $params["ACCESSION_NUMBER"], $url);
+            header("Location: " . $url);
+            exit;
+        }
+    }
+}
+```
 
 ---
 
