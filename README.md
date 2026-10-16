@@ -1,6 +1,6 @@
 # Orthanc PACS & SIMGOSv2 Integration Suite
 
-Repositori ini menyediakan solusi *turnkey* (siap pakai) untuk integrasi **PACS Orthanc**, **SIMGOSv2** (Sistem Informasi Manajemen Rumah Sakit Generasi 2 dari Kementerian Kesehatan RI), dan **Kemenkes SatuSehat** berbasis Docker Compose.
+Repositori ini menyediakan solusi *turnkey* (siap pakai) untuk integrasi **PACS Orthanc**, **[SIMGOSv2](https://docs.simgos2.simpel.web.id)** (Sistem Informasi Manajemen Rumah Sakit Generasi 2 dari Kementerian Kesehatan RI), dan **Kemenkes SatuSehat** berbasis Docker Compose.
 
 Arsitektur ini dirancang khusus untuk mengatasi kendala integrasi HL7 MLLP dan viewer radiologi pada SIMGOSv2, serta menyediakan pipeline pengiriman citra DICOM yang stabil, aman, dan berkinerja tinggi.
 
@@ -185,7 +185,7 @@ Mundur 15 hari setiap dini hari pukul 01:15 untuk menyinkronkan ulang data yang 
 ---
 
 ## 👥 Pengakuan dan Kredit (Credits)
-* **SIMGOSv2**: Dikembangkan oleh Kementerian Kesehatan Republik Indonesia.
+* **SIMGOSv2**: Dikembangkan oleh Kementerian Kesehatan Republik Indonesia ([Dokumentasi Resmi SIMGOSv2](https://docs.simgos2.simpel.web.id)).
 * **dicom-mover Engine**: Dikembangkan dan dirilis oleh tim **SIMpel Development** ([https://git.simpel.web.id/pub/dicom-mover](https://git.simpel.web.id/pub/dicom-mover)).
 * **Orthanc PACS**: Dikembangkan oleh Tim Orthanc / Osimis ([orthanc-server.com](https://www.orthanc-server.com/)).
 * **Integration and Orchestration**: Dipelihara oleh Instalasi SIRS dan IT Rumah Sakit untuk faskes pengguna SIMGOSv2 di Indonesia.
