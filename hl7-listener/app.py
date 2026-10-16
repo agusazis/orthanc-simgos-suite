@@ -12,7 +12,7 @@ from pydicom.uid import ImplicitVRLittleEndian, generate_uid, UID
 # ==============================================================================
 # CONFIGURATION VIA ENVIRONMENT VARIABLES
 # ==============================================================================
-INSTITUTION_NAME = os.getenv("INSTITUTION_NAME", "RSUD dr. H. Jusuf SK")
+INSTITUTION_NAME = os.getenv("INSTITUTION_NAME", "Hospital Name")
 STATION_AETITLE  = os.getenv("STATION_AETITLE", "ORTHANC")
 HL7_HOST         = os.getenv("HL7_HOST", "0.0.0.0")
 HL7_PORT         = int(os.getenv("HL7_PORT", "2575"))

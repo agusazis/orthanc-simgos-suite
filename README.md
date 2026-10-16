@@ -1,15 +1,15 @@
-# Orthanc PACS & SIMGOS Integration Suite
+# Orthanc PACS & SIMGOSv2 Integration Suite
 
-Repositori ini menyediakan solusi *turnkey* (siap pakai) untuk integrasi **PACS Orthanc**, **SIMRS SIMGOS**, dan **Kemenkes SatuSehat** berbasis Docker Compose.
+Repositori ini menyediakan solusi *turnkey* (siap pakai) untuk integrasi **PACS Orthanc**, **SIMGOSv2** (Sistem Informasi Manajemen Rumah Sakit Generasi 2 dari Kementerian Kesehatan RI), dan **Kemenkes SatuSehat** berbasis Docker Compose.
 
-Arsitektur ini dirancang khusus untuk mengatasi keterbatasan integrasi HL7 dan web viewer bawaan SIMGOS serta menyediakan pipeline pengiriman citra radiologi yang stabil, aman, dan berkinerja tinggi di lingkungan rumah sakit.
+Arsitektur ini dirancang khusus untuk mengatasi kendala integrasi HL7 MLLP dan viewer radiologi pada SIMGOSv2, serta menyediakan pipeline pengiriman citra DICOM yang stabil, aman, dan berkinerja tinggi.
 
 ---
 
 ## 📌 Alur Kerja Sistem (Data Flow)
 
 ```text
-[ Dokter SIMRS SIMGOS ]
+[ Dokter SIMRS SIMGOSv2 ]
        │
        ▼ (1. Order Pemeriksaan Radiologi)
 [ HL7 MLLP Port 2575 ] ───▶ (2. Microservice hl7-listener)
@@ -17,8 +17,8 @@ Arsitektur ini dirancang khusus untuk mengatasi keterbatasan integrasi HL7 dan w
                                    ▼ (3. Generate DICOM MWL *.wl)
                        [ Storage /worklists ]
                                    │
-                                   ▼ (4. C-FIND Worklist Query)
-                        [ Mesin Modalitas (CR/CT/USG) ]
+                                   ▼ (4. C-FIND Modality Worklist Query)
+                        [ Mesin Modalitas (CR/DR/CT/USG) ]
                                    │
                                    ▼ (5. C-STORE Kirim Citra DICOM)
                          [ Orthanc Core (Port 4242) ]
@@ -31,10 +31,10 @@ Arsitektur ini dirancang khusus untuk mengatasi keterbatasan integrasi HL7 dan w
                ┌───────────────────────────────┴───────────────────────────────┐
                ▼                                                               ▼
    [ Nginx Reverse Proxy Port 80 ]                                [ dicom-mover Service ]
-   (Auto-Auth Basic Header)                                       (Query C-MOVE otomatis)
+   (Auto-Auth Basic Header)                                       (Karya SIMpel Development)
                │                                                               │
                ▼                                                               ▼
-   [ Dokter Buka Viewer SIMGOS ]                                    [ Router SatuSehat ]
+   [ Dokter Buka Viewer SIMGOSv2 ]                                 [ Router SatuSehat ]
    (/ohif/ atau /stone-webviewer/)                                             │
                                                                                ▼
                                                                  [ Cloud SatuSehat Kemenkes ]
@@ -49,97 +49,109 @@ Arsitektur ini dirancang khusus untuk mengatasi keterbatasan integrasi HL7 dan w
 2. **`orthanc` (Orthanc PACS Core)**:
    Server inti DICOM (AET: `ORTHANC`, Port `4242` dan REST API Port `8042`) dilengkapi web viewer modern (**OHIF Viewer v3** dan **Stone Web Viewer**).
 3. **`hl7-listener` (Python MLLP Microservice)**:
-   Penerima pesan HL7 order dari SIMGOS. Menangani format MSH khusus SIMGOS, memformat nama dokter sesuai standar DICOM PN (`Family^Given^^Prefix^Suffix`), dan menulis file Modality Worklist (MWL) secara *atomic*.
+   Penerima pesan HL7 order dari SIMGOSv2. Menangani parsing MSH SIMGOSv2, memformat nama dokter sesuai standar DICOM PN (`Family^Given^^Prefix^Suffix`), dan menulis file Modality Worklist (MWL) secara *atomic*.
 4. **`nginx-proxy` (Reverse Proxy Auto-Auth)**:
-   Meneruskan request web viewer dari antarmuka SIMGOS di port 80 dengan menyuntikkan *Basic Authentication* secara transparan ke Orthanc, sekaligus memblokir akses ke antarmuka admin Orthanc Explorer dari luar.
-5. **`dicom-mover` (Kemenkes SatuSehat Bridge)**:
-   Engine sinkronisasi otomatis yang membaca order selesai di database SIMGOS, menarik gambar dari Orthanc melalui C-MOVE, dan meneruskannya ke Router SatuSehat Kemenkes.
+   Meneruskan request web viewer dari antarmuka SIMGOSv2 di port 80 dengan menyuntikkan *Basic Authentication* secara transparan ke Orthanc, sekaligus mengisolasi dan memblokir antarmuka admin Orthanc Explorer dari akses luar.
+5. **`dicom-mover` (Kemenkes SatuSehat Bridge by SIMpel Development)**:
+   Engine sinkronisasi otomatis yang dikembangkan oleh **SIMpel Development** (pengembang asli SIMGOSv2). Layanan ini membaca order selesai di database SIMGOSv2, memerintahkan Orthanc via C-MOVE untuk menarik citra, dan meneruskannya ke Router SatuSehat Kemenkes.
 
 ---
 
-## 🚀 Panduan Cepat Deployment
+## 🚀 Panduan Deployment (100% Menggunakan `.env`)
+
+Seluruh konfigurasi (identitas RS, kredensial database, port, dan IP modalitas) **hanya diatur melalui satu file `.env`**. File `docker-compose.yml` sudah terstandarisasi penuh dan tidak perlu diubah secara manual.
 
 ### 1. Prasyarat Server
 * **Sistem Operasi**: Linux (Ubuntu Server 22.04 / 24.04 LTS direkomendasikan).
-* **RAM / CPU**: Minimal 4 GB RAM, 2-4 Core vCPU.
+* **Hardware**: Minimal 4 GB RAM, 2-4 vCPU.
 * **Storage Rekomendasi**:
-  * Drive SSD lokal (misal: `/var/lib/pacs-local`) untuk database PostgreSQL dan worklist aktif.
+  * Drive SSD lokal (misal: `/var/lib/pacs-local`) untuk PostgreSQL dan worklist aktif.
   * Drive NFS NAS / ZFS Storage (misal: `/mnt/pacs-data`) untuk menampung file citra DICOM berkapasitas besar.
-* **Docker & Docker Compose**:
+* **Docker dan Docker Compose**:
   ```bash
   curl -fsSL https://get.docker.com -o get-docker.sh
   sudo sh get-docker.sh
   sudo usermod -aG docker $USER
   ```
 
-### 2. Kloning & Persiapan Konfigurasi
+### 2. Kloning dan Persiapan Direktori
 ```bash
-git clone https://github.com/username/orthanc-simgos-suite.git /opt/orthanc
+git clone https://github.com/agusazis/orthanc-simgos-suite.git /opt/orthanc
 cd /opt/orthanc
 
-# Buat file konfigurasi lingkungan dari template
-cp .env.example .env
-chmod 600 .env
-```
-
-### 3. Sesuaikan Variabel di `.env`
-Buka file `.env` menggunakan editor teks favorit Anda (`nano .env`):
-* Ganti `INSTITUTION_NAME` dengan nama Rumah Sakit Anda.
-* Ganti `DICOM_UID_ROOT` dengan format `1.2.360.[KODE_RS_KEMENKES]`.
-* Tentukan password untuk database dan Orthanc.
-* Hitung header Basic Auth untuk Nginx:
-  ```bash
-  echo -n 'orthanc_simrs:PASSWORD_ANDA' | base64
-  ```
-  Salin hasilnya ke baris `ORTHANC_BASIC_AUTH="Basic [HASIL_BASE64]"`.
-* Sesuaikan IP Modalitas rontgen/CT pada `ORTHANC_DICOM_MODALITIES`.
-* Sesuaikan kredensial database SIMGOS untuk `dicom-mover`.
-
-### 4. Buat Direktori Penyimpanan di Host
-```bash
+# Buat direktori host yang diperlukan
 sudo mkdir -p /var/lib/pacs-local/pg-data
 sudo mkdir -p /var/lib/pacs-local/worklists
 sudo mkdir -p /mnt/pacs-data/orthanc-storage
 sudo chmod -R 777 /var/lib/pacs-local/worklists
+
+# Persiapan direktori log dan tracking file dicom-mover
+mkdir -p dicom-mover/logs
+[ ! -f dicom-mover/acn_last.txt ] && echo "0" > dicom-mover/acn_last.txt
 ```
 
-### 5. Jalankan Sistem
+### 3. Konfigurasi Lingkungan (`.env`)
+Salin file template `.env.example` ke `.env`:
+```bash
+cp .env.example .env
+chmod 600 .env
+nano .env
+```
+
+Sesuaikan parameter berikut di `.env`:
+* **`INSTITUTION_NAME`**: Nama resmi Rumah Sakit Anda.
+* **`DICOM_UID_ROOT`**: Format `1.2.360.[KODE_RS_KEMENKES]`.
+* **`POSTGRES_PASSWORD`**: Tentukan password database PostgreSQL lokal PACS.
+* **`ORTHANC_SIMRS_PASSWORD`**: Tentukan password akses web Orthanc.
+* **`ORTHANC_BASIC_AUTH`**: String Basic Auth untuk Nginx. Hitung dengan:
+  ```bash
+  echo -n 'orthanc_simrs:PASSWORD_ORTHANC_ANDA' | base64
+  ```
+  Masukkan hasilnya: `ORTHANC_BASIC_AUTH="Basic [HASIL_BASE64]"`.
+* **`ORTHANC_DICOM_MODALITIES`**: Daftarkan AETitle, IP, dan Port modalitas mesin rontgen/CT/USG Anda.
+* **`DB_HOST`, `DB_USER`, `DB_PASS`**: Kredensial koneksi ke database MySQL SIMGOSv2 (`kemkes-ihs`).
+
+### 4. Jalankan Sistem
 ```bash
 docker compose up -d --build
 ```
 
-Verifikasi seluruh container berjalan normal:
+Periksa kesehatan seluruh kontainer:
 ```bash
 docker compose ps
 ```
 
 ---
 
-## 🔧 Konfigurasi SIMGOS
+## 🔧 Integrasi dengan SIMGOSv2
 
-### 1. Pengaturan HL7 Listener di SIMGOS
-Pada modul konfigurasi integrasi radiologi/LIS SIMGOS:
-* **HL7 Host / IP**: IP Server PACS (contoh: `172.168.1.19`)
+### 1. Pengaturan HL7 Listener di SIMGOSv2
+Pada menu konfigurasi Radiologi/LIS SIMGOSv2:
+* **HL7 Host / IP**: IP Server PACS Anda (contoh: `192.168.10.30`)
 * **HL7 Port**: `2575`
 * **Format Pesan**: HL7 2.x (ORM / OBR)
 
-### 2. Pengaturan URL Viewer di SIMGOS
-Untuk tombol "Buka Citra / Hasil" pada rekam medis elektronik:
-* **OHIF Viewer**:
-  `http://[IP_SERVER_PACS]/ohif/viewer?StudyInstanceUIDs=1.2.360.[KODE_RS].[ACCESSION_NUMBER]`
+### 2. Pengaturan URL Viewer di SIMGOSv2
+Untuk tombol "Buka Citra / Hasil" pada Elektronik Rekam Medis (ERM):
+* **OHIF Viewer v3**:
+  ```text
+  http://[IP_SERVER_PACS]/ohif/viewer?StudyInstanceUIDs=1.2.360.[KODE_RS].[ACCESSION_NUMBER]
+  ```
 * **Stone Web Viewer**:
-  `http://[IP_SERVER_PACS]/stone-webviewer/index.html?study=1.2.360.[KODE_RS].[ACCESSION_NUMBER]`
+  ```text
+  http://[IP_SERVER_PACS]/stone-webviewer/index.html?study=1.2.360.[KODE_RS].[ACCESSION_NUMBER]
+  ```
 
 ---
 
-## 🏥 Pengaturan Mesin Modalitas (Rontgen / CT / USG)
+## 🏥 Pengaturan Mesin Modalitas (CR / DR / CT / USG)
 
 Masukkan parameter berikut pada konsol mesin radiologi:
-* **DICOM Host / IP**: IP Server PACS (contoh: `172.168.1.19`)
+* **DICOM Server Host / IP**: IP Server PACS Anda (contoh: `192.168.10.30`)
 * **Storage Port**: `4242`
-* **Worklist Port**: `4242`
+* **Worklist Port (MWL)**: `4242`
 * **Called AE Title**: `ORTHANC`
-* **Calling AE Title**: Sesuaikan dengan AET yang Anda daftarkan di `.env` (contoh: `ELEVA1`, `CT1`).
+* **Calling AE Title**: Daftarkan nama AET modalitas Anda di `.env` (contoh: `CR_ROOM1`, `CT_SCAN`).
 
 Uji koneksi worklist dari terminal:
 ```bash
@@ -154,23 +166,26 @@ findscu -v -W \
 
 ---
 
-## 🧹 Pemeliharaan & Housekeeping Otomatis
+## 🧹 Pemeliharaan Rutin (Cronjob)
 
-### 1. Retensi File Worklist (MWL Cleanup)
-File order worklist yang berumur lebih dari 2 hari dapat dibersihkan otomatis melalui cronjob host:
+### 1. Auto-Cleanup File Worklist Usang
+Bersihkan file MWL (`.wl`) yang berusia lebih dari 2 hari:
 ```bash
-# Tambahkan ke crontab (crontab -e):
+# crontab -e
 0 1 * * * find /var/lib/pacs-local/worklists -type f -name "*.wl" -mtime +2 -delete
 ```
 
-### 2. Auto-Sweep Dicom Mover
-Untuk memastikan data radiologi yang tertinggal (misal akibat koneksi internet terputus) tetap terkirim ke Kemenkes, pasang script auto-sweep pada crontab user:
+### 2. Auto-Sweep Dicom Mover (SatuSehat Catch-up)
+Mundur 15 hari setiap dini hari pukul 01:15 untuk menyinkronkan ulang data yang sempat tertinggal jika internet putus:
 ```bash
-# Mundur 15 hari setiap pukul 01:15 WITA
+# crontab -e
 15 1 * * * /opt/orthanc/dicom-mover/cron-job/reset_mover.sh > /dev/null 2>&1
 ```
 
 ---
 
-## 📄 Lisensi & Kontribusi
-Dikembangkan dan dipelihara oleh Instalasi SIRS & IT Rumah Sakit. Terbuka untuk kontribusi, fork, dan penyempurnaan bersama komunitas Faskes Indonesia.
+## 👥 Pengakuan dan Kredit (Credits)
+* **SIMGOSv2**: Dikembangkan oleh Kementerian Kesehatan Republik Indonesia.
+* **dicom-mover Engine**: Dikembangkan dan dirilis oleh tim **SIMpel Development** ([git.simpel.web.id](https://git.simpel.web.id)).
+* **Orthanc PACS**: Dikembangkan oleh Tim Orthanc / Osimis ([orthanc-server.com](https://www.orthanc-server.com/)).
+* **Integration and Orchestration**: Dipelihara oleh Instalasi SIRS dan IT Rumah Sakit untuk faskes pengguna SIMGOSv2 di Indonesia.
