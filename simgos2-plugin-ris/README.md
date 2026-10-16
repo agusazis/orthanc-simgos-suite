@@ -25,24 +25,24 @@ simgos2-plugin-ris/
 
 ## 🚀 Panduan Pemasangan di Server SIMGOSv2
 
-Asumsikan direktori root instalasi SIMGOSv2 Anda berada di `/var/www/html`:
+Asumsikan direktori root instalasi SIMGOSv2 produksi berada di `/var/www/html/production`:
 
 ### 1. Salin Berkas Driver
 ```bash
 # Salin driver worklist (ORTHANC.php)
-cp src/driver/worklist/ORTHANC.php /var/www/html/webapps/webservice/plugins/ris/src/driver/worklist/
+cp src/driver/worklist/ORTHANC.php /var/www/html/production/webapps/webservice/plugins/ris/src/driver/worklist/
 
 # Salin driver web viewer (OHIF.php & StoneViewer.php)
-cp src/driver/viewer/*.php /var/www/html/webapps/webservice/plugins/ris/src/driver/viewer/
+cp src/driver/viewer/*.php /var/www/html/production/webapps/webservice/plugins/ris/src/driver/viewer/
 ```
 
 ### 2. Salin dan Sesuaikan Konfigurasi
 ```bash
 # Salin template konfigurasi
-cp config/autoload/plugins/ris.php.example /var/www/html/webapps/webservice/config/autoload/plugins/ris.php
+cp config/autoload/plugins/ris.php.example /var/www/html/production/webapps/webservice/config/autoload/plugins/ris.php
 
 # Buka dan sesuaikan parameter server:
-nano /var/www/html/webapps/webservice/config/autoload/plugins/ris.php
+nano /var/www/html/production/webapps/webservice/config/autoload/plugins/ris.php
 ```
 
 Parameter yang perlu disesuaikan di `ris.php`:

@@ -130,11 +130,11 @@ Agar SIMGOSv2 dapat mengirimkan order pemeriksaan ke worklist Orthanc dan dokter
 > 💡 **Siap Pakai**: Seluruh file driver dan template konfigurasi yang dijelaskan di bawah ini telah kami sediakan di dalam folder **[`simgos2-plugin-ris/`](./simgos2-plugin-ris/)**. Anda cukup menyalinnya langsung ke server SIMGOSv2:
 > ```bash
 > # 1. Salin file driver
-> cp simgos2-plugin-ris/src/driver/worklist/ORTHANC.php /var/www/html/webapps/webservice/plugins/ris/src/driver/worklist/
-> cp simgos2-plugin-ris/src/driver/viewer/*.php /var/www/html/webapps/webservice/plugins/ris/src/driver/viewer/
+> cp simgos2-plugin-ris/src/driver/worklist/ORTHANC.php /var/www/html/production/webapps/webservice/plugins/ris/src/driver/worklist/
+> cp simgos2-plugin-ris/src/driver/viewer/*.php /var/www/html/production/webapps/webservice/plugins/ris/src/driver/viewer/
 >
 > # 2. Salin template konfigurasi
-> cp simgos2-plugin-ris/config/autoload/plugins/ris.php.example /var/www/html/webapps/webservice/config/autoload/plugins/ris.php
+> cp simgos2-plugin-ris/config/autoload/plugins/ris.php.example /var/www/html/production/webapps/webservice/config/autoload/plugins/ris.php
 > ```
 
 ### 1. Mengapa Viewer Mengarah ke Port 80 Nginx?

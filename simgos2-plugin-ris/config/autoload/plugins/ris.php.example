@@ -4,7 +4,7 @@
  * SIMGOSv2 - RIS PLUGIN CONFIGURATION TEMPLATE
  * =============================================================================
  * Salin file ini ke:
- * webapps/webservice/config/autoload/plugins/ris.php
+ * /var/www/html/production/webapps/webservice/config/autoload/plugins/ris.php
  *
  * Sesuaikan IP Host, Port, dan Kode Faskes dengan konfigurasi server Anda.
  */
