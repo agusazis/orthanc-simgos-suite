@@ -134,8 +134,8 @@ Agar SIMGOSv2 dapat mengirimkan order pemeriksaan ke worklist Orthanc dan dokter
 ---
 
 ### 2. Konfigurasi `ris.php` di SIMGOSv2
-Buka dan sesuaikan file konfigurasi RIS di server SIMGOSv2:
-`webapps/webservice/plugins/ris/ris.php` (atau `plugins/ris/be/ris.php`):
+Buka atau buat file konfigurasi RIS pada path produksi SIMGOSv2:  
+📂 **`webapps/webservice/config/autoload/plugins/ris.php`**
 
 ```php
 <?php
@@ -200,27 +200,76 @@ return [
 
 ---
 
-### 3. Penyesuaian Driver Plugin RIS (Opsional)
+### 3. Penyiapan File Driver RIS SIMGOSv2
+
+Untuk memastikan kompatibilitas penuh, siapkan file driver berikut pada direktori instalasi SIMGOSv2 Anda:
 
 #### A. Driver Worklist: `ORTHANC.php`
-Jika ingin menggunakan identitas `'name' => "ORTHANC"` pada opsi provider HL7 di `ris.php`, Anda cukup menyalin file driver bawaan `DCM4CHEE.php`:
+📂 **`webapps/webservice/plugins/ris/src/driver/worklist/ORTHANC.php`**
+
+Jika menggunakan opsi `'name' => "ORTHANC"` di `ris.php`, Anda cukup menyalin file driver bawaan `DCM4CHEE.php` dan menyesuaikan nama class-nya:
 ```bash
-# Di direktori SIMGOSv2:
 cp webapps/webservice/plugins/ris/src/driver/worklist/DCM4CHEE.php \
    webapps/webservice/plugins/ris/src/driver/worklist/ORTHANC.php
 ```
-Lalu edit `ORTHANC.php` dan sesuaikan deklarasi nama class-nya:
+Kode file `ORTHANC.php`:
 ```php
+<?php
 namespace RIS\driver\worklist;
 
 class ORTHANC extends Driver {
-    // Isi class sama persis dengan DCM4CHEE
+    // Mewarisi seluruh fungsi pembentukan MLLP HL7 2.x bawaan SIMGOSv2
 }
 ```
-*(Catatan: Jika tidak ingin menambah file baru, Anda tetap bisa menggunakan `'name' => "DCM4CHEE"` di `ris.php` karena protokol HL7 2.x MLLP yang dikirimkan SIMGOSv2 kompatibel penuh dan ditangani oleh microservice `hl7-listener`).*
+*(Catatan: Anda juga tetap dapat menggunakan `'name' => "DCM4CHEE"` pada `ris.php` tanpa membuat file baru, karena microservice `hl7-listener` sudah mendukung format HL7 tersebut).*
 
-#### B. Driver Viewer: `StoneViewer.php`
-Jika driver untuk Stone Viewer belum tersedia di direktori `webapps/webservice/plugins/ris/src/driver/viewer/`, buat file `StoneViewer.php`:
+#### B. Driver Viewer: `OHIF.php`
+📂 **`webapps/webservice/plugins/ris/src/driver/viewer/OHIF.php`**
+
+```php
+<?php
+namespace RIS\driver\viewer;
+
+class OHIF extends Driver {
+    public function getViewer($params) {
+        $config = $this->config;
+        if (!empty($params["ACCESSION_NUMBER"])) {
+            $url = $config["url"] . $config["queries"];
+            $url = str_replace("[ACCESSION_NUMBER]", $params["ACCESSION_NUMBER"], $url);
+            
+            // Bypass OIDC jika diarahkan via Nginx reverse proxy
+            if (isset($config["oidc"])) {
+                $oidc = $config["oidc"];
+                unset($oidc["url"]);
+
+                $options = [
+                    "url" => $config["oidc"]["url"],
+                    "method" => "POST",
+                    "header" => [
+                        "Content-type: application/x-www-form-urlencoded"
+                    ],
+                    "data" => http_build_query($oidc),
+                    "dataIsJson" => false
+                ];
+
+                $caller = clone $this->caller;
+                $respon = $caller->doSendRequest($options);
+                
+                if ($respon && isset($respon->access_token)) {
+                    $url .= "&token=" . ($respon->access_token);
+                }
+            }
+            
+            header("Location: " . $url);
+            exit;
+        }
+    }
+}
+```
+
+#### C. Driver Viewer: `StoneViewer.php`
+📂 **`webapps/webservice/plugins/ris/src/driver/viewer/StoneViewer.php`**
+
 ```php
 <?php
 namespace RIS\driver\viewer;
