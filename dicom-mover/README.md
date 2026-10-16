@@ -1,27 +1,23 @@
-Docker ini memiliki fungsi untuk mengambil accession number pada service request kemudian memerintahkan pacs untuk mengirim dicom ke `dicom-router` atau sebagai alternatif untuk mengirim kembali dicom ke dicom-router
+# DICOM Mover (SatuSehat Bridge)
 
-## DAFTARKAN DICOM ROUTER DI PACS
+> **Repositori Resmi Upstream**: [https://git.simpel.web.id/pub/dicom-mover](https://git.simpel.web.id/pub/dicom-mover)  
+> Dikembangkan oleh **SIMpel Development** (Pengembang SIMGOSv2).
 
-- AETITLE: DCMROUTER
+Layanan ini berfungsi untuk mengambil nomor aksesi (*accession number*) pada order yang selesai di database SIMGOSv2, kemudian memerintahkan PACS Orthanc via C-MOVE untuk mengirimkan citra DICOM ke `dicom-router` SatuSehat Kemenkes.
 
-## BUAT USER AKSES KE DB
+---
 
-**Buat User: dicom-router**
+## 1. DAFTARKAN DICOM ROUTER DI PACS
 
-Untuk pengguna simgos
-- berikan hak akses `SELECT` di db `kemkes-ihs` table `service_request` 
-- berikan hak akses `SELECT` di db `layanan` table `tindakan_medis`
+- AETITLE: `ROUTER_SS` (atau `DCMROUTER`)
+- Port default: `11112`
 
-## SETTING FILE .ENV
+## 2. HAK AKSES DATABASE SIMGOSv2
 
-```
-nano .env
-```
+Buat user database (contoh: `dicommover`) di MySQL SIMGOSv2 dengan hak akses baca:
+- Hak akses `SELECT` di database `kemkes-ihs` tabel `service_request`
+- Hak akses `SELECT` di database `layanan` tabel `tindakan_medis`
 
-## JALANKAN DOCKER COMPOSE
+## 3. KONFIGURASI
 
-```
-docker compose up -d
-```
-
-> PASTIKAN SUDAH MELAKUKAN INSTALASI DOCKER
+Pengaturan kredensial database dan AETitle disentralisasi pada file root `.env` di direktori utama `/opt/orthanc/.env`.

@@ -53,7 +53,7 @@ Arsitektur ini dirancang khusus untuk mengatasi kendala integrasi HL7 MLLP dan v
 4. **`nginx-proxy` (Reverse Proxy Auto-Auth)**:
    Meneruskan request web viewer dari antarmuka SIMGOSv2 di port 80 dengan menyuntikkan *Basic Authentication* secara transparan ke Orthanc, sekaligus mengisolasi dan memblokir antarmuka admin Orthanc Explorer dari akses luar.
 5. **`dicom-mover` (Kemenkes SatuSehat Bridge by SIMpel Development)**:
-   Engine sinkronisasi otomatis yang dikembangkan oleh **SIMpel Development** (pengembang asli SIMGOSv2). Layanan ini membaca order selesai di database SIMGOSv2, memerintahkan Orthanc via C-MOVE untuk menarik citra, dan meneruskannya ke Router SatuSehat Kemenkes.
+   Engine sinkronisasi otomatis yang dikembangkan oleh **SIMpel Development** (pengembang asli SIMGOSv2). Repositori resmi: [https://git.simpel.web.id/pub/dicom-mover](https://git.simpel.web.id/pub/dicom-mover). Layanan ini membaca order selesai di database SIMGOSv2, memerintahkan Orthanc via C-MOVE untuk menarik citra, dan meneruskannya ke Router SatuSehat Kemenkes.
 
 ---
 
@@ -186,6 +186,6 @@ Mundur 15 hari setiap dini hari pukul 01:15 untuk menyinkronkan ulang data yang 
 
 ## 👥 Pengakuan dan Kredit (Credits)
 * **SIMGOSv2**: Dikembangkan oleh Kementerian Kesehatan Republik Indonesia.
-* **dicom-mover Engine**: Dikembangkan dan dirilis oleh tim **SIMpel Development** ([git.simpel.web.id](https://git.simpel.web.id)).
+* **dicom-mover Engine**: Dikembangkan dan dirilis oleh tim **SIMpel Development** ([https://git.simpel.web.id/pub/dicom-mover](https://git.simpel.web.id/pub/dicom-mover)).
 * **Orthanc PACS**: Dikembangkan oleh Tim Orthanc / Osimis ([orthanc-server.com](https://www.orthanc-server.com/)).
 * **Integration and Orchestration**: Dipelihara oleh Instalasi SIRS dan IT Rumah Sakit untuk faskes pengguna SIMGOSv2 di Indonesia.
