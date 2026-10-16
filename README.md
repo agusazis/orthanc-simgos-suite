@@ -184,6 +184,20 @@ Mundur 15 hari setiap dini hari pukul 01:15 untuk menyinkronkan ulang data yang 
 
 ---
 
+## ☕ Dukungan & Konsultasi
+
+Proyek ini bersifat terbuka dan gratis untuk membantu faskes di seluruh Indonesia mengoptimalkan integrasi radiologi PACS dan SatuSehat Kemenkes.
+
+* 💬 **Bantuan Setup & Remote Asistensi**:  
+  Jika tim IT rumah sakit Anda membutuhkan diskusi, panduan implementasi, atau bantuan asistensi teknis, silakan hubungi:  
+  👉 **Telegram**: [@AGUSAZIS](https://t.me/AGUSAZIS)
+
+* ☕ **Traktir Kopi (Dukungan Sukarela)**:  
+  Jika repositori ini membantu kelancaran operasional faskes Anda dan menghemat waktu riset tim IT, dukungan sukarela secangkir kopi sangat diapresiasi:  
+  👉 **Saweria**: [saweria.co/agusazis15](https://saweria.co/agusazis15)
+
+---
+
 ## 👥 Pengakuan dan Kredit (Credits)
 * **SIMGOSv2**: Dikembangkan oleh Kementerian Kesehatan Republik Indonesia ([Dokumentasi Resmi SIMGOSv2](https://docs.simgos2.simpel.web.id)).
 * **dicom-mover Engine**: Dikembangkan dan dirilis oleh tim **SIMpel Development** ([https://git.simpel.web.id/pub/dicom-mover](https://git.simpel.web.id/pub/dicom-mover)).
